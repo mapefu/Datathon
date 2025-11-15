@@ -1,12 +1,13 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import numpy as np
 
-df = pd.read_csv('train.csv', sep=';')
+df = pd.read_csv('grouped_data.csv', sep=';')
 
-X = df[list(df.columns[1:8]) + [df.columns[18], df.columns[9], df.columns[10]] + list(df.columns[20:28])]
-y = df[df.columns[-2]]
+X = df[[df.columns[1]] + list(df.columns[3:19])+ list(df.columns[21:-2])]
+y = df[df.columns[2]]
 
 # Convertir las columnas categóricas a variables numéricas
 X_encoded = pd.get_dummies(X)
@@ -26,8 +27,14 @@ resultados = pd.DataFrame({
     'Predicción': predicciones
 })
 
-desviacion_tipica = np.std(resultados['Valor Real'] - resultados['Predicción'])
-print(f"Desviación típica entre predicción y valor real: {desviacion_tipica}")
+mae = mean_absolute_error(y_test, predicciones)
+mse = mean_squared_error(y_test, predicciones)
+rmse = np.sqrt(mse)
+r2 = r2_score(y_test, predicciones)
+
+print(f"MAE: {mae}")
+print(f"RMSE: {rmse}")
+print(f"R^2: {r2}")
 
 # Guardar en archivo CSV
 resultados.to_csv('predicciones_y_reales.csv', index=False, sep=';')
