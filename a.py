@@ -73,7 +73,9 @@ print(f"  R²   : {r2:.4f}")
 
 #5. REENTRENAR AMB TOT EL TRAIN ----------------
 modelo_full = RandomForestRegressor(
-    n_estimators=300,
+    n_estimators=500,
+    max_depth=22,
+    min_samples_leaf=3,
     random_state=42,
     n_jobs=-1
 )
