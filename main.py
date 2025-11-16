@@ -86,7 +86,7 @@ modelo_full.fit(X_enc, y)
 predicciones = modelo_full.predict(Xt_aligned)
 
 #"Inflar" una mica la producció (per penalització de vendes perdudes)
-factor = 1.1
+factor = 1.13
 predicciones_aumentadas = predicciones * factor
 
 #Arrodonim i passem a enters
