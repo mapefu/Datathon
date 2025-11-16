@@ -7,18 +7,16 @@ import numpy as np
 df = pd.read_csv('data_train_proces_temporadas.csv', sep=';')
 dt = pd.read_csv('test\\grouped_data_test_temporadas.csv', sep=';')
 
-X = df[list(df.columns[1:4])+list(df.columns[5:18])+ list(df.columns[18:-2])]
+X = df[list(df.columns[1:5])+list(df.columns[6:18])+ list(df.columns[18:-3])]
 y = df[df.columns[-1]]
-Xt = dt[list(dt.columns[1:4])+list(dt.columns[5:18])+ list(dt.columns[18:-2])]
+Xt = dt[list(dt.columns[1:5])+list(dt.columns[6:18])+ list(dt.columns[18:-3])]
 # Convertir las columnas categóricas a variables numéricas
 X_encoded = pd.get_dummies(X)
 X_test = pd.get_dummies(Xt)
 
-X_train, X_betatest, y_train, y_betatest = train_test_split(X_encoded, y, test_size=0.1)
+#X_train, X_betatest, y_train, y_betatest = train_test_split(X_encoded, y, test_size=0.15)
 
-X_test_aligned = X_test.reindex(columns=X_train.columns, fill_value=0)
-
-print(X_train)
+#print(X_train)
 
 #X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.1)
 
@@ -28,6 +26,7 @@ r2f = 0
 x = 5
 for j in range(x):
     modelos.append(RandomForestRegressor())
+    X_train, X_betatest, y_train, y_betatest = train_test_split(X_encoded, y, test_size=0.15)
     modelos[j].fit(X_train, y_train)
     predicciones = modelos[j].predict(X_betatest)
     r2 = r2_score(y_betatest, predicciones)
@@ -36,9 +35,12 @@ for j in range(x):
         r2f = r2
         i = j
 print(f"R^2: {r2f}")
+
+X_test_aligned = X_test.reindex(columns=X_train.columns, fill_value=0)
+
 predicciones = modelos[i].predict(X_test_aligned)
 
-predicciones_aumentadas = (predicciones * 1.11)
+predicciones_aumentadas = (predicciones * 1.09)
 # Redondear predicciones y convertir a enteros
 predicciones_int = np.round(predicciones_aumentadas).astype(int)
 
