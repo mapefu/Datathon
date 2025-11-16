@@ -1,30 +1,25 @@
 import pandas as pd
-import numpy as np
-
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from scipy.stats import randint, uniform
+import numpy as np
 
-# ---------------- 1. LLEGIR DADES ----------------
-train_path = "data_train_proces_temporadas.csv"
-test_path  = "test/grouped_data_test_temporadas.csv"
+# 1. LLEGIR DADES
+df = pd.read_csv('data_train_proces_temporadas.csv', sep=';')
+dt = pd.read_csv('test\\grouped_data_test_temporadas.csv', sep=';')
 
-print(f"Llegint train de: {train_path}")
-df = pd.read_csv(train_path, sep=";")
+# 2. DEFINIR FEATURES I TARGET DE MANERA MÉS CLARA
+# Columnes que tenim al train:
+# ['ID', 'id_season', 'family', 'category', 'fabric', 'color_rgb',
+#  'length_type', 'silhouette_type', 'waist_type', 'neck_lapel_type',
+#  'sleeve_length_type', 'heel_shape_type', 'toecap_type', 'woven_structure',
+#  'knit_structure', 'print_type', 'archetype', 'moment', 'phase_in',
+#  'phase_out', 'life_cycle_length', 'num_stores', 'num_sizes',
+#  'has_plus_sizes', 'price', 'Production', 'weekly_demand']
 
-print(f"Llegint test de : {test_path}")
-dt = pd.read_csv(test_path, sep=";")
-
-print("Columnes train:", df.columns.tolist())
-print("Columnes test :", dt.columns.tolist())
-print()
-
-# ---------------- 2. DEFINIR FEATURES I TARGET ----------------
-# Target = demanda total (weekly_demand)
 target_col = "weekly_demand"
 
-# Columnes que NO farem servir com a features
+# No volem fer servir ID ni la pròpia target ni Production com a feature
 cols_to_exclude = ["ID", "Production", "weekly_demand"]
 
 feature_cols = [c for c in df.columns if c not in cols_to_exclude]
@@ -38,110 +33,72 @@ y = df[target_col].copy()
 
 Xt = dt[feature_cols].copy()
 
-# Assegurem que booleans passen a 0/1
+# Assegurem que has_plus_sizes és numèrica (0/1) si existeix
 if "has_plus_sizes" in X.columns:
     X["has_plus_sizes"] = X["has_plus_sizes"].astype(int)
     Xt["has_plus_sizes"] = Xt["has_plus_sizes"].astype(int)
 
-# ---------------- 3. ONE-HOT ENCODING COHERENT ----------------
-# Truquet: concatenem train + test per fer dummies amb les mateixes categories
-X_all = pd.concat([X, Xt], axis=0, ignore_index=True)
+# 3. ONE-HOT ENCODING (CATEGÒRIQUES → DUMMIES)
+X_train = pd.get_dummies(X)
+X_test = pd.get_dummies(Xt)
 
-X_all_enc = pd.get_dummies(X_all)
+# Alineem columnes: test ha de tenir EXACTAMENT les mateixes que train
+X_test_aligned = X_test.reindex(columns=X_train.columns, fill_value=0)
 
-# Separem de nou
-X_enc  = X_all_enc.iloc[:len(X), :].copy()
-Xt_enc = X_all_enc.iloc[len(X):, :].copy()
-
-print("Forma X_enc (train):", X_enc.shape)
-print("Forma Xt_enc (test) :", Xt_enc.shape)
+print("Forma X_train:", X_train.shape)
+print("Forma X_test_aligned:", X_test_aligned.shape)
 print()
 
-# ---------------- 4. TRAIN/VALIDATION SPLIT ----------------
-# Fem una validació interna per optimitzar el model
+# 4. VALIDACIÓ RÀPIDA PER VEURE COM DE BO ÉS EL MODEL
 X_tr, X_val, y_tr, y_val = train_test_split(
-    X_enc, y, test_size=0.2, random_state=42
+    X_train, y, test_size=0.2, random_state=42
 )
 
-print("Mides:")
-print("  X_tr:", X_tr.shape, "  y_tr:", y_tr.shape)
-print("  X_val:", X_val.shape, " y_val:", y_val.shape)
-print()
-
-# ---------------- 5. DEFINIR RANDOM FOREST BASE ----------------
-rf_base = RandomForestRegressor(
-    random_state=42,
-    n_jobs=-1
+# Random Forest una mica més potent i estable
+modelo = RandomForestRegressor(
+    n_estimators=400,      # més arbres → més estabilitat
+    max_depth=20,         # evita arbres massa profunds i sorollosos
+    min_samples_leaf=2,   # fulles amb com a mínim 2 mostres
+    n_jobs=-1,            # usa tots els nuclis de CPU
+    random_state=42       # resultats repetibles
 )
 
-# ---------------- 6. ESPAI D'HIPERPARÀMETRES PER CERCA ALEATÒRIA ----------------
-param_dist = {
-    "n_estimators": randint(200, 800),       # nombre d'arbres
-    "max_depth": randint(8, 30),            # profunditat màxima
-    "min_samples_split": randint(2, 10),    # mínim mostres per fer un split
-    "min_samples_leaf": randint(1, 6),      # mínim mostres a una fulla
-    "max_features": ["sqrt", "log2", 0.5],  # quantes features mira cada arbre
-    "bootstrap": [True, False]              # bootstrapping o no
-}
+print("Entrenant model per validació interna...")
+modelo.fit(X_tr, y_tr)
 
-# ---------------- 7. CERCA D'HIPERPARÀMETRES (RandomizedSearchCV) ----------------
-# Temps no és problema → podem deixar n_iter més alt
-n_iter_search = 30
-
-print("Iniciant cerca aleatòria d'hiperparàmetres...")
-random_search = RandomizedSearchCV(
-    rf_base,
-    param_distributions=param_dist,
-    n_iter=n_iter_search,
-    scoring="neg_mean_absolute_error",  # volem minimitzar MAE
-    cv=3,
-    verbose=1,
-    random_state=42,
-    n_jobs=-1
-)
-
-random_search.fit(X_tr, y_tr)
-
-print("\nMillors hiperparàmetres trobats:")
-print(random_search.best_params_)
-print()
-
-best_model = random_search.best_estimator_
-
-# ---------------- 8. AVALUACIÓ SOBRE VALIDACIÓ ----------------
-y_val_pred = best_model.predict(X_val)
+y_val_pred = modelo.predict(X_val)
 
 mae = mean_absolute_error(y_val, y_val_pred)
 rmse = np.sqrt(mean_squared_error(y_val, y_val_pred))
 r2 = r2_score(y_val, y_val_pred)
 
-print("RESULTATS VALIDACIÓ INTERN (amb best_model):")
+print("Resultats validació (20% train):")
 print(f"  MAE  : {mae:.4f}")
 print(f"  RMSE : {rmse:.4f}")
 print(f"  R²   : {r2:.4f}")
 print()
 
-# ---------------- 9. REENTRENAR AMB TOT EL TRAIN ----------------
-print("Reentrenant best_model amb totes les dades de train...")
-best_model.fit(X_enc, y)
+# 5. REENTRENAR AMB TOTES LES DADES D'ENTRENAMENT
+print("Reentrenant amb totes les dades d'entrenament...")
+modelo.fit(X_train, y)
 
-# ---------------- 10. PREDIR SOBRE TEST ----------------
-print("Predint sobre Xt_enc (test final)...")
-pred_test = best_model.predict(Xt_enc)
+# 6. PREDIR SOBRE EL TEST
+print("Predint sobre el conjunt de test...")
+predicciones = modelo.predict(X_test_aligned)
 
-# "Inflar" una mica la producció (molt útil si penalitzen vendes perdudes)
-factor = 1.15  # pots provar 1.10, 1.15, 1.20
-pred_test_adj = pred_test * factor
+# Opcional: multiplicar per un factor per evitar quedarte curt de producció
+factor = 1.11
+predicciones_aumentadas = predicciones * factor
 
-pred_test_int = np.round(pred_test_adj).astype(int)
+# Arrodonir i convertir a enters
+predicciones_int = np.round(predicciones_aumentadas).astype(int)
 
-# ---------------- 11. CREAR FITXER DE SUBMISSIÓ ----------------
-submission = pd.DataFrame({
-    "ID": dt["ID"].values,
-    "Production": pred_test_int
+# 7. CREAR DATAFRAME DE RESULTATS
+resultados = pd.DataFrame({
+    'ID': dt['ID'].values,
+    'Production': predicciones_int
 })
 
-output_file = "submission_rf_optim.csv"
-submission.to_csv(output_file, sep=",", index=False)
-
-print(f"✔️ Fitxer '{output_file}' creat amb columnes (ID, Production)")
+# 8. GUARDAR FITXER DE SUBMISSIÓ
+resultados.to_csv('submission_rf.csv', sep=',', index=False)
+print("✔️ Fitxer 'submission_rf.csv' creat (ID,Production)")
