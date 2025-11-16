@@ -34,13 +34,13 @@ for j in range(x):
     if r2f < r2:
         r2f = r2
         i = j
-print(f"R^2: {r2f}")
+print(f"R^2 final: {r2f}")
 
 X_test_aligned = X_test.reindex(columns=X_train.columns, fill_value=0)
 
 predicciones = modelos[i].predict(X_test_aligned)
 
-predicciones_aumentadas = (predicciones * 1.09)
+predicciones_aumentadas = (predicciones * 1.12)
 # Redondear predicciones y convertir a enteros
 predicciones_int = np.round(predicciones_aumentadas).astype(int)
 
