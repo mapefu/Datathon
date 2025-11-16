@@ -6,8 +6,8 @@ import numpy as np
 
 df = pd.read_csv('data_train_proces_temporadas.csv', sep=';')
 
-for i in range(25):
-    X = df[list(df.columns[:i + 1])+ list(df.columns[i:-2])]
+for i in range(5):
+    X = df[list(df.columns[1:5]) + list(df.columns[6:18]) + list(df.columns[20:-2])]
     y = df[df.columns[-1]]
 
     X_encoded = pd.get_dummies(X)
@@ -27,4 +27,4 @@ for i in range(25):
 
     r2 = r2_score(y_test, predicciones)
 
-    print(f"R^2: {r2}")
+    print(f"{i + 1}-R^2: {r2}")
