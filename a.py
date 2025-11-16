@@ -9,9 +9,11 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 df = pd.read_csv("data_train_proces_temporadas.csv", sep=";")
 dt = pd.read_csv("test/grouped_data_test_temporadas.csv", sep=";")
 
+'''
 print("Columnes train:", df.columns.tolist())
 print("Columnes test :", dt.columns.tolist())
 print()
+'''
 
 #2. DEFINIR FEATURES I TARGET ----------------
 # Farem servir com a target la demanda total (weekly_demand)
@@ -48,7 +50,9 @@ X_tr, X_val, y_tr, y_val = train_test_split(
 )
 
 modelo = RandomForestRegressor(
-    n_estimators=300,
+    n_estimators=500,
+    max_depth=22,
+    min_samples_leaf=3,
     random_state=42,
     n_jobs=-1
 )
@@ -57,15 +61,15 @@ modelo.fit(X_tr, y_tr)
 
 y_val_pred = modelo.predict(X_val)
 
-mae = mean_absolute_error(y_val, y_val_pred)
-rmse = np.sqrt(mean_squared_error(y_val, y_val_pred))
+# mae = mean_absolute_error(y_val, y_val_pred)
+# rmse = np.sqrt(mean_squared_error(y_val, y_val_pred))
 r2 = r2_score(y_val, y_val_pred)
 
-print("RESULTATS VALIDACIÓ INTERNA (20% del train):")
-print(f"  MAE  : {mae:.4f}")
-print(f"  RMSE : {rmse:.4f}")
+# print("RESULTATS VALIDACIÓ INTERNA (20% del train):")
+# print(f"  MAE  : {mae:.4f}")
+# print(f"  RMSE : {rmse:.4f}")
 print(f"  R²   : {r2:.4f}")
-print()
+# print()
 
 #5. REENTRENAR AMB TOT EL TRAIN ----------------
 modelo_full = RandomForestRegressor(
